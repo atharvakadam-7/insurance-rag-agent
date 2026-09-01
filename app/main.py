@@ -1,14 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from langchain_core.messages import HumanMessage
+from langgraph.errors import GraphRecursionError
 from pydantic import BaseModel
 
 from .agent import build_agent
 
 app = FastAPI(title="Insurance Policy Agent")
 
-# Built once at startup, not per-request — rebuilding the agent (and its LLM
-# client) on every call would add latency for no reason.
 _agent = None
+
+NOT_FOUND_ANSWER = "The provided policy documents do not contain information about this."
 
 
 def get_agent():
@@ -39,13 +40,12 @@ def query(req: QueryRequest):
     agent = get_agent()
 
     try:
-        # Pass a proper HumanMessage object to the agent
-        result = agent.invoke({"messages": [HumanMessage(content=req.question)]})
-
-        # Extract the final AI message response
+        result = agent.invoke(
+            {"messages": [HumanMessage(content=req.question)]},
+            config={"recursion_limit": 15},
+        )
         final_message = result["messages"][-1]
 
-        # Handle string or list-content outputs from modern ChatModels
         if isinstance(final_message.content, list):
             answer = "".join(
                 part.get("text", "") if isinstance(part, dict) else str(part)
@@ -54,9 +54,19 @@ def query(req: QueryRequest):
         else:
             answer = str(final_message.content)
 
+        # Some runs end on a tool-call message with no text content instead
+        # of a proper final answer. Treat that the same as "not found"
+        # rather than returning an empty string to the user.
+        if not answer.strip():
+            answer = NOT_FOUND_ANSWER
+
         return QueryResponse(answer=answer)
 
+    except GraphRecursionError:
+        # The agent kept searching without converging on an answer. This is
+        # functionally the same as "not found in the docs" from the user's
+        # perspective, so respond cleanly instead of a 500.
+        return QueryResponse(answer=NOT_FOUND_ANSWER)
+
     except Exception as e:
-        # Prevent 500 crashes from bubbling up unhandled; return a clear
-        # execution error instead
         raise HTTPException(status_code=500, detail=str(e))
