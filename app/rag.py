@@ -1,11 +1,15 @@
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_chroma import Chroma
+from .config import CHROMA_PERSIST_DIR, TOP_K
 
-from .config import EMBEDDING_MODEL, CHROMA_PERSIST_DIR, TOP_K
+# FastEmbed uses ONNX runtime instead of torch/sentence-transformers.
+# Same idea as before (small local embedding model) but without the ~700MB
+# torch runtime that was causing the 512MB Render instance to OOM.
+FASTEMBED_MODEL = "BAAI/bge-small-en-v1.5"
 
 
 def get_embeddings():
-    return HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+    return FastEmbedEmbeddings(model_name=FASTEMBED_MODEL)
 
 
 def get_vectorstore():

@@ -9,11 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download the embedding model at build time. This is the whole point of
-# baking it in: without this line, the first request after every cold start
-# on Render's free tier re-downloads ~90MB from Hugging Face, which is slow
-# and will make your demo look broken to anyone testing it live.
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5')" 
 
 COPY . .
 
