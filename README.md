@@ -79,7 +79,7 @@ this setup, and Render's free tier wipes disk on every deploy anyway.
    inactivity) — mention this if you demo it live, don't let a recruiter
    think it's broken while it wakes up.
 
-## Known limitations (say these in an interview before someone else finds them)
+## Known limitations
 
 - No conversation memory — every `/query` call is stateless. Multi-turn
   follow-ups ("what about my second claim?") won't have context. Fixing
